@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>Help Desk Ticket Triager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      button, [role="button"], select, summary, input:not([type="checkbox"], [type="radio"]) { min-height: 2.25rem; }
+      * { box-sizing: border-box; }
+      :root{
+        --bg:#eef1f3; --bg2:#e3e8eb; --panel:#ffffff; --panel2:#f4f7f8; --ink:#13212c; --ink2:#43545f; --muted:#6b7d88;
+        --line:#d3dde1; --line2:#bccbd2;
+        --teal:#0b6e5d; --teal-bright:#0e8a74; --teal-soft:#dff2ec;
+        --amber:#b45309; --amber-soft:#fdf0d9;
+        --red:#b42318; --red-soft:#fde8e5;
+        --orange:#c2410c; --orange-soft:#fdeadd;
+        --green:#157347; --green-soft:#e2f2e7;
+        --blue:#175cd3; --blue-soft:#e4ecfd;
+        --code-bg:#0f1c26; --code-ink:#d7e6ee;
+        --shadow:0 1px 2px rgba(19,33,44,.06), 0 10px 28px -18px rgba(19,33,44,.28);
+      }
+      @media (prefers-color-scheme: dark){
+        :root{
+          --bg:#0b1319; --bg2:#0e1820; --panel:#131f29; --panel2:#182732; --ink:#e8eff3; --ink2:#b7c6cf; --muted:#8496a1;
+          --line:#263945; --line2:#334b5a;
+          --teal:#2fbf9f; --teal-bright:#3fd4b2; --teal-soft:#12352d;
+          --amber:#f0b35c; --amber-soft:#3a2c12;
+          --red:#ff8a7a; --red-soft:#3d1d18;
+          --orange:#ffa07a; --orange-soft:#3a2415;
+          --green:#6fd598; --green-soft:#173527;
+          --blue:#8ab4ff; --blue-soft:#1a2c4d;
+          --code-bg:#081118; --code-ink:#cfe3ec;
+          --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -18px rgba(0,0,0,.7);
+        }
+      }
+      html{ scroll-behavior:smooth; }
+      body{ margin:0; background:var(--bg); color:var(--ink); font-family:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif; font-size:16px; line-height:1.55; -webkit-font-smoothing:antialiased; }
+      .mono{ font-family:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+      a{ color:var(--teal); }
+      button{ font:inherit; cursor:pointer; }
+      :focus-visible{ outline:3px solid var(--teal-bright); outline-offset:2px; border-radius:6px; }
+
+      .wrap{ max-width:1120px; margin:0 auto; padding:0 20px 72px; }
+
+      /* ---------- Header ---------- */
+      header.top{ padding:34px 0 8px; }
+      .topline{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; }
+      .journey{ font-family:"IBM Plex Mono",monospace; font-size:.78rem; letter-spacing:.06em; color:var(--ink2); display:flex; align-items:center; gap:9px; }
+      .journey .dot{ width:9px; height:9px; border-radius:50%; background:var(--teal-bright); box-shadow:0 0 0 4px var(--teal-soft); flex:none; }
+      .tonight{ font-family:"IBM Plex Mono",monospace; font-size:.78rem; color:var(--teal); background:var(--teal-soft); border:1px solid var(--line); padding:6px 12px; border-radius:999px; font-weight:600; }
+      h1{ font-size:clamp(2.1rem, 5.4vw, 3.4rem); line-height:1.04; letter-spacing:-.02em; margin:18px 0 12px; font-weight:800; max-width:14ch; }
+      h1 .accent{ color:var(--teal); }
+      .lede{ font-size:1.13rem; color:var(--ink2); max-width:62ch; margin:0; }
+      .lede strong{ color:var(--ink); }
+      .meta-row{ display:flex; flex-wrap:wrap; gap:8px 22px; margin-top:18px; font-size:.9rem; color:var(--muted); }
+      .meta-row b{ color:var(--ink); font-weight:600; }
+
+      /* ---------- Section scaffolding ---------- */
+      section{ margin-top:44px; }
+      .sec-head{ display:flex; align-items:baseline; gap:14px; margin-bottom:16px; flex-wrap:wrap; }
+      .sec-num{ font-family:"IBM Plex Mono",monospace; font-size:.82rem; font-weight:600; color:var(--teal); border:1.5px solid var(--teal); border-radius:8px; padding:3px 9px; flex:none; }
+      h2{ font-size:1.55rem; letter-spacing:-.015em; margin:0; font-weight:700; }
+      .sec-sub{ color:var(--ink2); margin:2px 0 0; max-width:68ch; font-size:.98rem; }
+      h3{ font-size:1.05rem; margin:0 0 6px; font-weight:700; }
+
+      /* ---------- Triager console ---------- */
+      .console{ background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); overflow:hidden; }
+      .console-bar{ display:flex; align-items:center; gap:10px; padding:12px 18px; background:var(--panel2); border-bottom:1px solid var(--line); flex-wrap:wrap; }
+      .console-bar .lights{ display:flex; gap:6px; }
+      .console-bar .lights span{ width:11px; height:11px; border-radius:50%; display:block; }
+      .console-bar .title{ font-family:"IBM Plex Mono",monospace; font-size:.82rem; color:var(--ink2); font-weight:500; }
+      .console-bar .live{ margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:.75rem; color:var(--teal); display:flex; align-items:center; gap:7px; font-weight:600; }
+      .console-bar .live i{ width:8px; height:8px; border-radius:50%; background:var(--teal-bright); display:block; animation:pulse 1.8s infinite; }
+      @keyframes pulse{ 0%,100%{ opacity:1 } 50%{ opacity:.3 } }
+      @media (prefers-reduced-motion: reduce){ .console-bar .live i{ animation:none } html{ scroll-behavior:auto } }
+
+      .console-grid{ display:grid; grid-template-columns:1fr 1fr; }
+      .pane{ padding:20px; }
+      .pane + .pane{ border-left:1px solid var(--line); }
+      .pane-label{ font-family:"IBM Plex Mono",monospace; font-size:.75rem; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); margin:0 0 10px; font-weight:600; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+      label.f-label{ display:block; font-weight:600; font-size:.92rem; margin:14px 0 6px; }
+      label.f-label:first-of-type{ margin-top:0; }
+      input[type="text"], select, textarea{ width:100%; font:inherit; font-size:.95rem; color:var(--ink); background:var(--panel2); border:1px solid var(--line2); border-radius:9px; padding:10px 12px; }
+      textarea{ min-height:148px; resize:vertical; line-height:1.5; }
+      input[type="text"]:focus, select:focus, textarea:focus{ border-color:var(--teal); outline:none; box-shadow:0 0 0 3px var(--teal-soft); background:var(--panel); }
+      .row2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+      .samples{ margin-top:16px; }
+      .samples p{ font-size:.85rem; color:var(--muted); margin:0 0 8px; font-weight:600; }
+      .sample-btns{ display:flex; flex-wrap:wrap; gap:8px; }
+      .chip-btn{ background:var(--panel); border:1px solid var(--line2); color:var(--ink); border-radius:999px; padding:7px 13px; font-size:.85rem; font-weight:500; min-height:36px; }
+      .chip-btn:hover{ border-color:var(--teal); color:var(--teal); }
+      .actions{ display:flex; gap:10px; margin-top:18px; flex-wrap:wrap; }
+      .btn-primary{ background:var(--teal); color:#fff; border:1px solid var(--teal); font-weight:700; border-radius:9px; padding:11px 22px; font-size:1rem; min-height:46px; }
+      .btn-primary:hover{ background:var(--teal-bright); border-color:var(--teal-bright); }
+      @media (prefers-color-scheme: dark){ .btn-primary{ color:#06231c; } }
+      .btn-ghost{ background:transparent; color:var(--ink2); border:1px solid var(--line2); font-weight:600; border-radius:9px; padding:11px 18px; min-height:46px; }
+      .btn-ghost:hover{ color:var(--ink); border-color:var(--ink2); }
+      .hint{ font-size:.83rem; color:var(--muted); margin-top:12px; }
+
+      /* result pane */
+      .empty-state{ border:1.5px dashed var(--line2); border-radius:11px; padding:28px 20px; text-align:center; color:var(--muted); }
+      .empty-state .big{ font-size:1.6rem; margin-bottom:6px; }
+      .empty-state p{ margin:0; font-size:.93rem; }
+      .result{ display:none; }
+      .result.show{ display:block; }
+      .prio-row{ display:flex; gap:14px; align-items:stretch; flex-wrap:wrap; }
+      .prio-badge{ border-radius:11px; padding:12px 18px; text-align:center; min-width:118px; flex:none; }
+      .prio-badge .p{ font-size:1.9rem; font-weight:800; line-height:1; letter-spacing:-.01em; }
+      .prio-badge .pl{ font-size:.78rem; font-weight:600; margin-top:4px; }
+      .prio-p1{ background:var(--red-soft); color:var(--red); border:1px solid var(--red); }
+      .prio-p2{ background:var(--orange-soft); color:var(--orange); border:1px solid var(--orange); }
+      .prio-p3{ background:var(--amber-soft); color:var(--amber); border:1px solid var(--amber); }
+      .prio-p4{ background:var(--blue-soft); color:var(--blue); border:1px solid var(--blue); }
+      @media (prefers-color-scheme: dark){ .prio-p2{ color:var(--orange); } }
+      .prio-facts{ flex:1; min-width:180px; display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; align-content:start; }
+      .fact{ background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:8px 11px; }
+      .fact .k{ font-size:.7rem; font-family:"IBM Plex Mono",monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+      .fact .v{ font-weight:700; font-size:.95rem; margin-top:1px; }
+      .sla{ margin-top:12px; font-size:.9rem; background:var(--teal-soft); border-radius:9px; padding:10px 13px; color:var(--ink); }
+      .sla b{ color:var(--teal); }
+      .signals{ margin-top:14px; }
+      .signals .k, .block-k{ font-size:.72rem; font-family:"IBM Plex Mono",monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:600; margin:0 0 7px; }
+      .sig-chips{ display:flex; flex-wrap:wrap; gap:6px; }
+      .sig{ font-family:"IBM Plex Mono",monospace; font-size:.76rem; background:var(--panel2); border:1px solid var(--line2); border-radius:6px; padding:3px 8px; color:var(--ink2); }
+      .conf{ margin-top:14px; }
+      .conf-bar{ height:8px; background:var(--bg2); border-radius:99px; overflow:hidden; }
+      .conf-fill{ height:100%; background:var(--teal-bright); border-radius:99px; transition:width .5s ease; }
+      @media (prefers-reduced-motion: reduce){ .conf-fill{ transition:none } }
+      .conf-txt{ font-size:.82rem; color:var(--muted); margin-top:5px; }
+      .result-block{ margin-top:18px; border-top:1px solid var(--line); padding-top:16px; }
+      ol.steps{ margin:0; padding-left:1.25rem; }
+      ol.steps li{ margin-bottom:5px; font-size:.94rem; }
+      .draft{ background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:14px 16px; font-size:.93rem; white-space:pre-wrap; }
+      .copy-btn{ margin-top:10px; background:var(--panel); border:1px solid var(--line2); border-radius:8px; padding:8px 14px; font-size:.86rem; font-weight:600; color:var(--ink); min-height:38px; }
+      .copy-btn:hover{ border-color:var(--teal); color:var(--teal); }
+      .kb{ font-size:.93rem; }
+      .kb .kb-id{ font-family:"IBM Plex Mono",monospace; font-size:.8rem; color:var(--teal); font-weight:600; }
+
+      /* ---------- Prompt section ---------- */
+      .formula{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
+      .f-card{ background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:15px 16px; box-shadow:var(--shadow); }
+      .f-card .n{ font-family:"IBM Plex Mono",monospace; font-size:.75rem; color:var(--teal); font-weight:600; }
+      .f-card h3{ margin:4px 0 5px; font-size:1rem; }
+      .f-card p{ margin:0; font-size:.88rem; color:var(--ink2); }
+      .codebox{ background:var(--code-bg); border-radius:13px; overflow:hidden; box-shadow:var(--shadow); }
+      .codebox-bar{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 16px; border-bottom:1px solid rgba(255,255,255,.09); flex-wrap:wrap; }
+      .codebox-bar .t{ font-family:"IBM Plex Mono",monospace; font-size:.8rem; color:#9db8c6; font-weight:500; }
+      .codebox pre{ margin:0; padding:18px; overflow-x:auto; font-family:"IBM Plex Mono",monospace; font-size:.85rem; line-height:1.65; color:var(--code-ink); white-space:pre-wrap; word-break:break-word; }
+      .codebox pre .hl{ color:#5eead4; font-weight:600; }
+      .copy-btn-dark{ background:transparent; border:1px solid rgba(255,255,255,.28); color:#e6f2f7; border-radius:8px; padding:8px 14px; font-size:.85rem; font-weight:600; min-height:38px; }
+      .copy-btn-dark:hover{ border-color:#5eead4; color:#5eead4; }
+
+      /* ---------- Plan steps ---------- */
+      .steps-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+      .step-card{ background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:20px; box-shadow:var(--shadow); position:relative; }
+      .step-card .when{ font-family:"IBM Plex Mono",monospace; font-size:.76rem; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--teal); }
+      .step-card h3{ font-size:1.18rem; margin:6px 0 8px; }
+      .step-card p{ margin:0 0 10px; color:var(--ink2); font-size:.94rem; }
+      .step-card ul{ margin:0; padding-left:1.15rem; color:var(--ink2); font-size:.92rem; }
+      .step-card li{ margin-bottom:4px; }
+      .step-card .done-when{ margin-top:12px; border-top:1px dashed var(--line2); padding-top:10px; font-size:.88rem; }
+      .step-card .done-when b{ color:var(--teal); }
+      .now-tag{ position:absolute; top:16px; right:16px; background:var(--teal); color:#fff; font-size:.72rem; font-weight:700; letter-spacing:.05em; padding:4px 10px; border-radius:999px; text-transform:uppercase; }
+      @media (prefers-color-scheme: dark){ .now-tag{ color:#06231c; } }
+
+      /* ---------- Ticket bank ---------- */
+      .bank-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+      .ticket-card{ background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:16px 18px; text-align:left; width:100%; box-shadow:var(--shadow); display:block; }
+      .ticket-card:hover{ border-color:var(--teal); }
+      .ticket-card .t-head{ display:flex; justify-content:space-between; gap:10px; align-items:center; margin-bottom:6px; }
+      .ticket-card .t-id{ font-family:"IBM Plex Mono",monospace; font-size:.78rem; color:var(--muted); font-weight:600; }
+      .ticket-card .t-exp{ font-family:"IBM Plex Mono",monospace; font-size:.74rem; font-weight:600; padding:3px 9px; border-radius:999px; }
+      .ticket-card .t-body{ font-size:.93rem; color:var(--ink); line-height:1.5; }
+      .ticket-card .t-try{ font-size:.8rem; color:var(--teal); font-weight:600; margin-top:8px; display:block; }
+
+      /* ---------- Tonight checklist ---------- */
+      .tonight-box{ background:var(--panel); border:1px solid var(--line); border-radius:13px; box-shadow:var(--shadow); padding:8px 22px; }
+      .check-item{ display:flex; gap:14px; padding:15px 0; border-bottom:1px solid var(--line); align-items:flex-start; }
+      .check-item:last-child{ border-bottom:none; }
+      .check-num{ width:30px; height:30px; border-radius:50%; border:2px solid var(--teal); color:var(--teal); font-weight:700; font-size:.9rem; display:flex; align-items:center; justify-content:center; flex:none; font-family:"IBM Plex Mono",monospace; }
+      .check-item h3{ font-size:1rem; margin:1px 0 3px; }
+      .check-item p{ margin:0; color:var(--ink2); font-size:.92rem; }
+      .check-item .mins{ margin-left:auto; flex:none; font-family:"IBM Plex Mono",monospace; font-size:.78rem; color:var(--muted); padding-top:4px; }
+
+      /* ---------- Money ladder strip ---------- */
+      .ladder{ display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
+      .rung{ background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:14px; box-shadow:var(--shadow); }
+      .rung .r-n{ font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--muted); font-weight:600; }
+      .rung h3{ font-size:.95rem; margin:4px 0 4px; line-height:1.3; }
+      .rung p{ margin:0; font-size:.82rem; color:var(--ink2); line-height:1.45; }
+      .rung.first{ border-color:var(--teal); background:var(--teal-soft); }
+      .rung.first h3{ color:var(--teal); }
+
+      footer{ margin-top:52px; border-top:1px solid var(--line); padding-top:20px; color:var(--muted); font-size:.88rem; display:flex; flex-wrap:wrap; gap:8px 24px; justify-content:space-between; }
+      footer b{ color:var(--ink2); }
+
+      .toast{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px); background:var(--ink); color:var(--bg); padding:11px 20px; border-radius:10px; font-weight:600; font-size:.92rem; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:50; box-shadow:var(--shadow); }
+      .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+      @media (max-width: 880px){
+        .console-grid{ grid-template-columns:1fr; }
+        .pane + .pane{ border-left:none; border-top:1px solid var(--line); }
+        .formula{ grid-template-columns:1fr 1fr; }
+        .ladder{ grid-template-columns:1fr 1fr; }
+      }
+      @media (max-width: 600px){
+        .wrap{ padding:0 14px 56px; }
+        .formula, .steps-grid, .bank-grid, .row2{ grid-template-columns:1fr; }
+        .ladder{ grid-template-columns:1fr; }
+        .prio-facts{ grid-template-columns:1fr 1fr; }
+        h1{ font-size:2.15rem; }
+        .check-item .mins{ display:none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+
+      <header class="top">
+        <div class="topline">
+          <div class="journey"><span class="dot"></span> JOSHUA × ATLAS — AI AUTOMATION JOURNEY</div>
+          <div class="tonight">Project 01 · Starts tonight</div>
+        </div>
+        <h1>Help Desk Ticket <span class="accent">Triager</span></h1>
+        <p class="lede">Your flagship portfolio project, built step by step. Paste in any support ticket and the triager reads it, sorts it, scores it, and drafts the reply — <strong>the exact workflow you'll later rebuild with a real AI API, then sell.</strong> Tonight we build version 1 together: the prompt, the logic, and the test plan.</p>
+        <div class="meta-row">
+          <span><b>Built on:</b> your Help Desk + IT support experience</span>
+          <span><b>Time tonight:</b> ~30 minutes</span>
+          <span><b>Cost:</b> $0 — no courses, no tools to buy</span>
+        </div>
+      </header>
+
+      <!-- ============ 01 · THE WORKING PROTOTYPE ============ -->
+      <section id="triager">
+        <div class="sec-head">
+          <span class="sec-num">01</span>
+          <div>
+            <h2>Try the triager</h2>
+            <p class="sec-sub">This is the working v1.1 prototype — now with the two fixes from the T-08 review. <strong>1) P1s run in parallel:</strong> scope-confirm and dashboard / access point checks happen at the same time, never waiting on user replies. <strong>2) Tighter replies:</strong> P1 drafts ask for floor / room and headcount, and promise an update within 30 minutes instead of “as soon as we know more.” Try the “Wi-Fi down, whole floor” sample to see both.</p>
+          </div>
+        </div>
+
+        <div class="console">
+          <div class="console-bar">
+            <div class="lights"><span style="background:#e0655a"></span><span style="background:#e8b34b"></span><span style="background:#4caf7d"></span></div>
+            <span class="title">ticket-triager — v1.1 prototype · P1 parallel checks + tightened replies</span>
+            <span class="live"><i></i> READY</span>
+          </div>
+          <div class="console-grid">
+            <!-- Input pane -->
+            <div class="pane">
+              <p class="pane-label">Incoming ticket</p>
+              <label class="f-label" for="f-name">Requester name</label>
+              <input type="text" id="f-name" placeholder="e.g. Maria G." autocomplete="off" />
+              <div class="row2">
+                <div>
+                  <label class="f-label" for="f-dept">Department</label>
+                  <select id="f-dept">
+                    <option value="">Select…</option>
+                    <option>Accounting</option>
+                    <option>HR</option>
+                    <option>Sales</option>
+                    <option>Operations</option>
+                    <option>Warehouse / Logistics</option>
+                    <option>Executive</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="f-label" for="f-scope">Who's affected?</label>
+                  <select id="f-scope">
+                    <option value="1">Just me</option>
+                    <option value="2">My team</option>
+                    <option value="3">A whole department / floor</option>
+                    <option value="3">The whole company</option>
+                  </select>
+                </div>
+              </div>
+              <label class="f-label" for="f-ticket">Ticket description</label>
+              <textarea id="f-ticket" placeholder="Paste or type the ticket here — exactly how a user would write it. Messy is fine; real tickets are messy."></textarea>
+
+              <div class="samples">
+                <p>Or load a sample ticket:</p>
+                <div class="sample-btns" id="sample-btns"></div>
+              </div>
+
+              <div class="actions">
+                <button class="btn-primary" id="btn-triage" type="button">Triage ticket →</button>
+                <button class="btn-ghost" id="btn-clear" type="button">Clear</button>
+              </div>
+              <p class="hint">Tip: change “Who's affected?” on the same ticket and triage again — watch the priority move. Impact is half the priority decision.</p>
+            </div>
+
+            <!-- Result pane -->
+            <div class="pane" aria-live="polite">
+              <p class="pane-label">Triage result</p>
+              <div class="empty-state" id="empty-state">
+                <div class="big">🎫</div>
+                <p>No ticket triaged yet.<br />Load a sample on the left and hit <strong>Triage ticket</strong>.</p>
+              </div>
+              <div class="result" id="result">
+                <div class="prio-row">
+                  <div class="prio-badge" id="prio-badge">
+                    <div class="p" id="prio-code">P2</div>
+                    <div class="pl" id="prio-label">High priority</div>
+                  </div>
+                  <div class="prio-facts">
+                    <div class="fact"><div class="k">Category</div><div class="v" id="r-category">—</div></div>
+                    <div class="fact"><div class="k">Assign to</div><div class="v" id="r-assign">—</div></div>
+                    <div class="fact"><div class="k">Urgency</div><div class="v" id="r-urgency">—</div></div>
+                    <div class="fact"><div class="k">Impact</div><div class="v" id="r-impact">—</div></div>
+                  </div>
+                </div>
+                <div class="sla" id="r-sla"></div>
+
+                <div class="signals">
+                  <p class="k">Signals it picked up in the ticket</p>
+                  <div class="sig-chips" id="r-signals"></div>
+                </div>
+
+                <div class="conf">
+                  <p class="k" style="font-size:.72rem;font-family:'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:0 0 7px;">Classification confidence</p>
+                  <div class="conf-bar"><div class="conf-fill" id="conf-fill" style="width:0%"></div></div>
+                  <div class="conf-txt" id="conf-txt"></div>
+                </div>
+
+                <div class="result-block">
+                  <p class="block-k">First troubleshooting steps</p>
+                  <ol class="steps" id="r-steps"></ol>
+                </div>
+
+                <div class="result-block">
+                  <p class="block-k">Knowledge base match</p>
+                  <p class="kb" style="margin:0;"><span class="kb-id" id="r-kb-id"></span> — <span id="r-kb-title"></span></p>
+                </div>
+
+                <div class="result-block">
+                  <p class="block-k">Draft reply — ready to send</p>
+                  <div class="draft" id="r-draft"></div>
+                  <button class="copy-btn" id="btn-copy-draft" type="button">Copy draft reply</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 02 · THE PROMPT ============ -->
+      <section id="prompt">
+        <div class="sec-head">
+          <span class="sec-num">02</span>
+          <div>
+            <h2>The prompt behind it</h2>
+            <p class="sec-sub">Step 1 of the build is the prompt — it's the brain of the whole project. It's built on the formula from your roadmap: <strong>Role + Context + Task + Format + Constraints + Example</strong>. In v2, this exact prompt gets sent to an AI API with each new ticket.</p>
+          </div>
+        </div>
+
+        <div class="formula">
+          <div class="f-card"><div class="n">PART 1</div><h3>Role</h3><p>“You are an experienced IT Help Desk technician…” — sets the voice and the expertise level before anything else.</p></div>
+          <div class="f-card"><div class="n">PART 2</div><h3>Context</h3><p>Your company, your tools, your priority rules. The AI can't guess your SLA — you hand it over.</p></div>
+          <div class="f-card"><div class="n">PART 3</div><h3>Task</h3><p>One clear job: classify, score, suggest steps, draft the reply. Not “help with this ticket” — specific verbs.</p></div>
+          <div class="f-card"><div class="n">PART 4</div><h3>Format</h3><p>Labeled sections, every time. Consistent output is what makes the result usable inside an automation.</p></div>
+          <div class="f-card"><div class="n">PART 5</div><h3>Constraints</h3><p>Plain language, no jargon, never invent a fix. If it's unsure, it says so — that's the anti-hallucination guardrail.</p></div>
+          <div class="f-card"><div class="n">PART 6</div><h3>Example</h3><p>One worked ticket with its ideal triage. A single good example teaches the pattern better than a page of rules.</p></div>
+        </div>
+
+        <div class="codebox">
+          <div class="codebox-bar">
+            <span class="t">master-prompt.txt — copy this into ChatGPT or Claude to test it tonight</span>
+            <button class="copy-btn-dark" id="btn-copy-prompt" type="button">Copy prompt</button>
+          </div>
+          <pre id="master-prompt"><span class="hl">ROLE</span>
+You are an experienced IT Help Desk technician at a mid-size company.
+You write the way a great support tech does: calm, clear, and practical.
+
+<span class="hl">CONTEXT</span>
+Our environment: Windows 11 laptops, Microsoft 365 (Outlook, Teams,
+OneDrive), VPN for remote staff, shared network printers.
+Priority rules:
+- P1 Critical: a department or the whole company cannot work
+- P2 High: one person cannot work at all, or a deadline is at risk
+- P3 Normal: one person is slowed down but has a workaround
+- P4 Low: a request, a how-to question, or a minor annoyance
+
+<span class="hl">TASK</span>
+Read the ticket below and produce a full triage.
+
+<span class="hl">FORMAT</span> — use exactly these headings:
+Category: [Password &amp; Access / Email &amp; Outlook / Network &amp; VPN /
+Hardware / Printer / Software / Security / Other]
+Priority: [P1 / P2 / P3 / P4] — with one sentence explaining why
+First steps: 3–5 troubleshooting steps, in order, simplest first.
+  For a P1, step 1 must run in parallel (see Constraints).
+Reply draft: a short, friendly reply I can send to the user as-is
+
+<span class="hl">CONSTRAINTS</span>
+- Plain language. No jargon the user would have to Google.
+- Never invent a policy, a password, or a fix you are not sure of.
+  If you are unsure, write "Needs a technician to confirm" and say why.
+- Keep the reply draft under 120 words.
+- P1 PARALLEL RULE: For a P1, do NOT wait for user replies before
+  checking. Run scope confirmation AND the dashboard / access point
+  checks in parallel, and say so in step 1.
+- TIGHT REPLY RULE: Never write "as soon as we know more." For a P1,
+  ask for the floor / room and roughly how many people are affected,
+  and promise a specific update: "I'll update you within 30 minutes."
+  (P2: within 1 hour · P3: within 4 hours.)
+
+<span class="hl">EXAMPLE</span>
+Ticket: "I've been locked out of my account since this morning and
+I have a client call at 2pm."
+Category: Password &amp; Access
+Priority: P2 — one person cannot work at all and has a deadline today.
+First steps: 1) Verify identity 2) Check lockout status in Active
+Directory 3) Unlock and reset 4) Confirm the user can sign in.
+Reply draft: "Hi — sorry you're locked out, let's get you back in
+before your 2pm call…"
+
+<span class="hl">NOW TRIAGE THIS TICKET:</span>
+[PASTE TICKET HERE]</pre>
+        </div>
+        <p class="hint" style="margin-top:12px;">Your homework loop: run it on a ticket → check the priority against the rules → fix the prompt where it got it wrong → run it again. Two fix rounds tonight and you own a v1 prompt.</p>
+      </section>
+
+      <!-- ============ 03 · PROJECT PLAN ============ -->
+      <section id="plan">
+        <div class="sec-head">
+          <span class="sec-num">03</span>
+          <div>
+            <h2>The build plan — four steps</h2>
+            <p class="sec-sub">One project, four versions. Each step is a skill you can point to in an interview, and each one makes the next one easier.</p>
+          </div>
+        </div>
+
+        <div class="steps-grid">
+          <div class="step-card">
+            <span class="now-tag">Tonight</span>
+            <div class="when">Step 1 · Days 1–3</div>
+            <h3>The prompt</h3>
+            <p>Get the master prompt above working reliably in ChatGPT or Claude. No code, no tools — just reps.</p>
+            <ul>
+              <li>Run all 10 test tickets from the bank below</li>
+              <li>Score each one: right category? right priority?</li>
+              <li>Fix the prompt wherever it misses, then re-run</li>
+            </ul>
+            <div class="done-when"><b>Done when:</b> the prompt gets at least 8 of 10 tickets right, twice in a row.</div>
+          </div>
+          <div class="step-card">
+            <div class="when">Step 2 · Week 2</div>
+            <h3>The no-code automation</h3>
+            <p>Connect the prompt to a real workflow with Make or n8n (free tier) so tickets triage themselves.</p>
+            <ul>
+              <li>Trigger: a new row in a Google Sheet, or a new email</li>
+              <li>Action: send the ticket + prompt to the AI, write the triage back to the Sheet</li>
+              <li>Add an error step — an automation that fails silently is worse than none</li>
+            </ul>
+            <div class="done-when"><b>Done when:</b> you can paste a ticket into the Sheet and watch the triage appear on its own.</div>
+          </div>
+          <div class="step-card">
+            <div class="when">Step 3 · Weeks 3–5</div>
+            <h3>Rebuild it in Power Automate</h3>
+            <p>Same workflow, Microsoft's tool — because Microsoft 365 shops are exactly the Help Desk jobs you're targeting.</p>
+            <ul>
+              <li>Trigger: a Microsoft Form or a shared mailbox</li>
+              <li>Post the triage to a Teams channel, draft the reply in Outlook</li>
+              <li>Note every difference from Make — that's interview material</li>
+            </ul>
+            <div class="done-when"><b>Done when:</b> the flow runs end-to-end inside Microsoft 365 without you touching it.</div>
+          </div>
+          <div class="step-card">
+            <div class="when">Step 4 · Weeks 6–10</div>
+            <h3>Code it + ship the portfolio piece</h3>
+            <p>Your CS degree enters the chat. Rebuild the triager in Python with a real AI API, then publish it like a product.</p>
+            <ul>
+              <li>Python script: ticket in → API call → structured triage out (JSON)</li>
+              <li>GitHub repo with a README: what it does, a screenshot, how to run it</li>
+              <li>Record a 2-minute demo video walking through 3 tickets</li>
+            </ul>
+            <div class="done-when"><b>Done when:</b> the repo is public and the project goes on your resume — under Projects, earned.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 04 · TEST TICKET BANK ============ -->
+      <section id="bank">
+        <div class="sec-head">
+          <span class="sec-num">04</span>
+          <div>
+            <h2>The 10-ticket test bank</h2>
+            <p class="sec-sub">Your test set for Step 1. Each card shows the answer the triage <em>should</em> reach — tap any ticket to load it into the triager and check. If the prototype and the master prompt both pass these 10, your logic is sound.</p>
+          </div>
+        </div>
+        <div class="bank-grid" id="bank-grid"></div>
+      </section>
+
+      <!-- ============ 05 · TONIGHT ============ -->
+      <section id="tonight">
+        <div class="sec-head">
+          <span class="sec-num">05</span>
+          <div>
+            <h2>Tonight — your first 30 minutes</h2>
+            <p class="sec-sub">No setup marathons. Four moves and Project 01 is officially underway.</p>
+          </div>
+        </div>
+        <div class="tonight-box">
+          <div class="check-item">
+            <div class="check-num">1</div>
+            <div><h3>Run the prototype</h3><p>Load three sample tickets above and triage them. Change “Who's affected?” on one and watch the priority move — that's the Impact × Urgency matrix doing its job.</p></div>
+            <div class="mins">5 MIN</div>
+          </div>
+          <div class="check-item">
+            <div class="check-num">2</div>
+            <div><h3>Test the master prompt</h3><p>Copy the prompt from section 02 into ChatGPT or Claude, paste in test ticket #1 from the bank, and check its answer against the expected triage.</p></div>
+            <div class="mins">10 MIN</div>
+          </div>
+          <div class="check-item">
+            <div class="check-num">3</div>
+            <div><h3>Fix it twice</h3><p>Wherever the AI's triage misses — wrong priority, jargon in the reply — adjust one line of the prompt and run it again. Save both versions in a doc called “Prompt Library.”</p></div>
+            <div class="mins">10 MIN</div>
+          </div>
+          <div class="check-item">
+            <div class="check-num">4</div>
+            <div><h3>Open the free accounts</h3><p>Create your free Make or n8n account so Step 2 has zero friction when you get there. That's it — tonight is done, and the project exists.</p></div>
+            <div class="mins">5 MIN</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 06 · THE LADDER ============ -->
+      <section id="ladder">
+        <div class="sec-head">
+          <span class="sec-num">06</span>
+          <div>
+            <h2>Where this project sits on the ladder</h2>
+            <p class="sec-sub">The trillionaire goal runs on ownership that scales — and every rung starts here, with one working project. This is rung one, being built tonight.</p>
+          </div>
+        </div>
+        <div class="ladder">
+          <div class="rung first"><div class="r-n">RUNG 1 — NOW</div><h3>One working project</h3><p>The Ticket Triager: proof you can build, not just watch tutorials.</p></div>
+          <div class="rung"><div class="r-n">RUNG 2</div><h3>Job leverage</h3><p>Help Desk + AI automation is a real differentiator in interviews — and a raise after.</p></div>
+          <div class="rung"><div class="r-n">RUNG 3</div><h3>First paid work</h3><p>Freelance builds for small businesses: $500–$2,000 per automation project.</p></div>
+          <div class="rung"><div class="r-n">RUNG 4</div><h3>Productized offer</h3><p>The same triager, packaged: “AI ticket triage setup” — setup fee + monthly.</p></div>
+          <div class="rung"><div class="r-n">RUNG 5</div><h3>Something that scales</h3><p>A tool or product that earns without your hours. That's where the big numbers live.</p></div>
+        </div>
+      </section>
+
+      <footer>
+        <span><b>Help Desk Ticket Triager</b> — Project 01 of Joshua's AI automation journey</span>
+        <span>Next session: score the prompt against all 10 test tickets.</span>
+      </footer>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+
+    <script>
+      // ---------------- Test ticket bank ----------------
+      var TICKETS = [
+        { id:"T-01", name:"Maria G.", dept:"Accounting", scope:1,
+          text:"I've been locked out of my account since this morning. It says my password expired and now it won't accept the new one. I have a client call at 2pm and I can't get into anything.",
+          expCat:"Password & Access", expPrio:"P2" },
+        { id:"T-02", name:"Devon R.", dept:"Sales", scope:1,
+          text:"Outlook on my laptop hasn't synced since yesterday afternoon. New emails show on my phone but not on the laptop. I can still send, I just can't see anything new coming in.",
+          expCat:"Email & Outlook", expPrio:"P3" },
+        { id:"T-03", name:"Priya S.", dept:"Operations", scope:1,
+          text:"Working from home today and my VPN disconnects every 10 minutes or so. It reconnects fine but I keep getting kicked out of the shared drive mid-file. Really frustrating.",
+          expCat:"Network & VPN", expPrio:"P3" },
+        { id:"T-04", name:"James T.", dept:"HR", scope:2,
+          text:"The printer on the 3rd floor has a paper jam again and now there's a line of people waiting. We need it for offer letters going out today.",
+          expCat:"Printer", expPrio:"P3" },
+        { id:"T-05", name:"Angela W.", dept:"Executive", scope:1,
+          text:"My laptop blue-screened twice this morning and now it won't boot at all — just a black screen. I have the board deck on there and a presentation at noon. This is urgent, I cannot work at all.",
+          expCat:"Hardware", expPrio:"P2" },
+        { id:"T-06", name:"Chris B.", dept:"Sales", scope:1,
+          text:"I got an email that looks like it's from IT asking me to verify my password through a link. The sender address looks slightly off. I haven't clicked anything. Is this real?",
+          expCat:"Security", expPrio:"P2" },
+        { id:"T-07", name:"Sam K.", dept:"HR", scope:1,
+          text:"New hire starting Monday — can we get Microsoft Office and the CRM installed on the spare laptop, and give her access to the HR shared drive? No rush, just before Monday.",
+          expCat:"Software", expPrio:"P4" },
+        { id:"T-08", name:"Taylor M.", dept:"Operations", scope:3,
+          text:"The Wi-Fi is down on the entire 2nd floor. Nobody up here can connect — the whole team is offline, about 30 people. Started around 9am and it's still out.",
+          expCat:"Network & VPN", expPrio:"P1" },
+        { id:"T-09", name:"Jordan L.", dept:"Accounting", scope:1,
+          text:"My second monitor keeps flickering every few minutes. It's usable, just annoying. Tried restarting and it still does it.",
+          expCat:"Hardware", expPrio:"P4" },
+        { id:"T-10", name:"Renee D.", dept:"Accounting", scope:1,
+          text:"Excel crashes every time I open our month-end workbook. It's a big file but it worked last month. Month-end close is tomorrow and I can't get my numbers done.",
+          expCat:"Software", expPrio:"P2" }
+      ];
+
+      // ---------------- Triage engine (v1 rules) ----------------
+      var CATEGORIES = [
+        { name:"Security", assign:"Security / Tier 2", kb:["KB-102","Phishing email — what to do (and what not to click)"],
+          keys:["phishing","suspicious","virus","malware","ransomware","hacked","hack","verify my password","sender address","spam","clicked a link","weird email","strange email"],
+          steps:["Do not click any links or attachments in the message — and confirm the user hasn't already","Report the email through the Outlook 'Report Phish' button (or forward it to the security mailbox)","If anything was clicked, reset the account password and check recent sign-in activity","Confirm whether anyone else received the same message and flag it for the team"] },
+        { name:"Password & Access", assign:"Tier 1 — Service Desk", kb:["KB-014","Account locked out or password expired — reset walkthrough"],
+          keys:["password","locked out","lockout","sign in","sign-in","login","log in","mfa","authenticator","access denied","expired","can't get in","cannot get in"],
+          steps:["Verify the user's identity using the standard verification questions","Check the account status in Active Directory — locked, expired, or disabled","Unlock the account and walk the user through a password reset","Confirm the user can sign in to email and one more app before closing"] },
+        { name:"Email & Outlook", assign:"Tier 1 — Service Desk", kb:["KB-031","Outlook not syncing — rebuild the profile and clear the cache"],
+          keys:["outlook","email","e-mail","inbox","sync","mail","send/receive","emails show"],
+          steps:["Check whether mail works on the phone or web (Outlook on the web) to isolate the app vs. the account","Restart Outlook and confirm it's not stuck in 'Working Offline' mode","Clear the Outlook cache / toggle Cached Exchange Mode off and back on","If it persists, create a fresh Outlook profile and re-add the account"] },
+        { name:"Network & VPN", assign:"Tier 2 — Network Support", kb:["KB-047","VPN disconnects and Wi-Fi outages — first checks before escalating"],
+          keys:["vpn","wi-fi","wifi","internet","network","connection","disconnect","offline","shared drive mid","ethernet","connect"],
+          steps:["In parallel — don't wait for user replies: confirm the scope (one person, one area, or everyone) WHILE you check the network dashboard, access point status, and known-outage board","Check power and cabling to the access points and the switch serving the affected area — a tripped power strip or loose cable is the most common floor-wide cause","For VPN: test on a second network (phone hotspot) to separate home internet from the VPN itself, then restart the VPN client and clear any saved/expired credentials","If the access points or switch are offline and a power check doesn't bring them back, escalate to network engineering right away — don't restart floor gear without a technician confirming the order"] },
+        { name:"Printer", assign:"Tier 1 — Service Desk", kb:["KB-058","Printer paper jams — clearing them without breaking the fuser"],
+          keys:["printer","print","paper jam","toner","printing"],
+          steps:["Open the printer and remove jammed paper slowly, pulling in the direction of the paper path","Check for torn scraps left inside — they're the #1 cause of repeat jams","Run the printer's built-in cleaning/diagnostic page","If jams repeat at the same spot, log it for a roller/fuser inspection"] },
+        { name:"Hardware", assign:"Tier 2 — Desktop Support", kb:["KB-066","Laptop won't boot or blue screens — diagnostics before replacement"],
+          keys:["laptop","monitor","screen","keyboard","mouse","battery","blue screen","blue-screened","bluescreen","boot","charger","dock","flicker","computer"],
+          steps:["Note any error codes or beep patterns before restarting — they point straight at the cause","Try a hard reset: unplug power, hold the power button 15 seconds, reconnect and boot","Test with a known-good charger/dock/monitor cable to rule out peripherals","If it still won't boot, swap in a loaner so the user can work and take the machine for diagnostics"] },
+        { name:"Software", assign:"Tier 1 — Service Desk", kb:["KB-073","App crashes and install requests — standard fixes and process"],
+          keys:["excel","word","teams","zoom","install","software","application","app crash","crashes","crm","office","update","license","workbook","file opens"],
+          steps:["Reproduce the problem — note the exact file, action, and any error message","Try the app in safe mode / open a different file to separate app vs. file problems","Repair the install from Settings → Apps (Quick Repair first, Online Repair if needed)","For install/access requests, confirm manager approval and the license is available before scheduling"] }
+      ];
+
+      var CRITICAL_KEYS = ["entire","whole team","whole floor","whole company","nobody","no one can","everyone","still out","is down","30 people","all of us"];
+      var HIGH_KEYS = ["urgent","cannot work at all","can't work","can’t work","cannot work","blocked","won't boot","wont boot","deadline","presentation at","client call","month-end close is tomorrow","board"];
+      var WORKAROUND_KEYS = ["workaround","on my phone","still does it","annoying","usable","no rush","just before","fine but","still send","reconnects fine"];
+
+      function findCat(text){
+        var best=null, bestScore=0, bestHits=[];
+        CATEGORIES.forEach(function(c){
+          var score=0, hits=[];
+          c.keys.forEach(function(k){
+            if(text.indexOf(k)>-1){ score+= (k.length>7?2:1); hits.push(k); }
+          });
+          if(score>bestScore){ bestScore=score; best=c; bestHits=hits; }
+        });
+        return { cat: best, score: bestScore, hits: bestHits };
+      }
+
+      function triage(name, dept, scope, rawText){
+        var text = " " + rawText.toLowerCase() + " ";
+        var found = findCat(text);
+        var cat = found.cat;
+        var signals = found.hits.slice(0,5);
+
+        var crit = CRITICAL_KEYS.filter(function(k){ return text.indexOf(k)>-1; });
+        var high = HIGH_KEYS.filter(function(k){ return text.indexOf(k)>-1; });
+        var work = WORKAROUND_KEYS.filter(function(k){ return text.indexOf(k)>-1; });
+        crit.forEach(function(s){ if(signals.indexOf(s)===-1) signals.push(s); });
+        high.forEach(function(s){ if(signals.indexOf(s)===-1) signals.push(s); });
+
+        // Urgency 1(low)–3(high), Impact from scope selector 1–3
+        var urgency = 1;
+        if(high.length) urgency = 3;
+        else if(work.length===0 && (text.indexOf("can't")>-1 || text.indexOf("cannot")>-1 || text.indexOf("won't")>-1)) urgency = 2;
+        if(crit.length) urgency = 3;
+        if(work.length && !high.length && urgency>1) urgency = 1;
+        if(cat && cat.name==="Security" && urgency<2) urgency = 2; // security never sleeps below medium
+        var impact = scope;
+
+        // Priority matrix
+        var prio;
+        if(impact===3 && urgency>=2) prio = 1;
+        else if(impact===3 && urgency===1) prio = 2;
+        else if(urgency===3) prio = 2;
+        else if(urgency===2) prio = 3;
+        else if(impact>=2) prio = 3;
+        else prio = 4;
+        // A single user with low urgency: P4 only if it's a request or a
+        // minor annoyance — a genuinely broken thing with a workaround is P3
+        var isMinor = text.indexOf("no rush")>-1 || text.indexOf("new hire")>-1 ||
+                      text.indexOf("annoying")>-1 || text.indexOf("just annoying")>-1 ||
+                      (cat && cat.name==="Software" && text.indexOf("install")>-1 && !high.length);
+        if(urgency===1 && impact===1) prio = isMinor ? 4 : 3;
+        // Security reports never sit below P2 — an unclicked phish today is a clicked one tomorrow
+        if(cat && cat.name==="Security" && prio>2) prio = 2;
+
+        var prioMeta = {
+          1:{ label:"Critical", sla:"Respond in 15 min · fix or workaround in 4 hrs" },
+          2:{ label:"High", sla:"Respond in 1 hr · resolve within 1 business day" },
+          3:{ label:"Normal", sla:"Respond in 4 hrs · resolve within 3 business days" },
+          4:{ label:"Low", sla:"Respond in 1 business day · schedule within the week" }
+        };
+        var urgLabel = {1:"Low",2:"Medium",3:"High"};
+        var impLabel = {1:"Just the requester",2:"A team",3:"Department / company-wide"};
+
+        var conf = cat ? Math.min(96, 52 + found.score*9 + signals.length*3) : 30;
+        if(!cat){ cat = { name:"Other", assign:"Tier 1 — Service Desk", kb:["KB-001","General intake — questions to ask before assigning"], steps:["Read the ticket back to the user to confirm what outcome they need","Ask the three clarifying questions: what changed, when did it start, who else is affected?","Check the knowledge base for the closest matching article","Assign to the most likely queue and note your reasoning on the ticket"] }; }
+        // P1 rule (v1.1): never serialize on user replies — scope-confirm and system checks run in parallel
+        var effectiveSteps = cat.steps.slice();
+        if(prio===1 && effectiveSteps[0].toLowerCase().indexOf("parallel")===-1){
+          effectiveSteps[0] = "In parallel — don't wait for user replies: confirm the scope WHILE you run the first system check — " + effectiveSteps[0].charAt(0).toLowerCase() + effectiveSteps[0].slice(1);
+        }
+
+        var firstName = name ? name.split(" ")[0] : "there";
+        var opener = {
+          "Security":"thanks for flagging this and for not clicking anything — that's exactly the right move.",
+          "Password & Access":"sorry you're locked out — let's get you back in quickly.",
+          "Email & Outlook":"sorry about the sync trouble — let's get your inbox current again.",
+          "Network & VPN":"sorry about the connection trouble — let's get you stable again.",
+          "Printer":"thanks for the heads-up — let's get that printer cleared and moving.",
+          "Hardware":"sorry you're dealing with this — let's get you working again first, then diagnose the machine.",
+          "Software":"thanks for the details — let's get this sorted.",
+          "Other":"thanks for the details — let's get this sorted."
+        }[cat.name];
+        var prioLine = prio<=2 ? "I've marked this as a priority, so it's at the top of our queue." : "I've logged this and it's in our queue in priority order.";
+        // Tightened reply rules (v1.1): specific ask + specific update time — never a vague "as soon as we know more"
+        var updatePromise = prio===1 ? "I'll update you within 30 minutes, even if it's just to confirm we're still on it."
+          : prio===2 ? "I'll update you within 1 hour."
+          : prio===3 ? "I'll update you within 4 hours."
+          : "I'll update you within 1 business day.";
+        var draftStep = effectiveSteps[0].charAt(0).toLowerCase() + effectiveSteps[0].slice(1);
+        if(prio===1 && cat.name==="Network & VPN"){
+          draftStep = "we're checking the access points and network dashboard right now, in parallel with confirming how wide the outage is";
+        }
+        var specificAsk = "";
+        if(prio===1 && cat.name==="Network & VPN"){
+          specificAsk = "\n\nQuick ask so we can size this fast: which floor and room are you in, and roughly how many people near you are affected? You don't need to wait to reply before we start — we're already checking in parallel.";
+        } else if(prio===1){
+          specificAsk = "\n\nQuick ask so we can size this fast: where are you located, and roughly how many people are affected?";
+        }
+        var draft = "Hi " + firstName + ",\n\n" + opener.charAt(0).toUpperCase() + opener.slice(1) + " " + prioLine + "\n\nFirst step: " + draftStep + "." + specificAsk + "\n\n" + updatePromise + " If anything changes or gets worse, just reply to this message.\n\nThanks,\nIT Support" + (dept ? "\n(ticket logged for " + dept + ")" : "");
+
+        var why = prio===1 ? "Wide impact plus real urgency — this jumps the whole queue."
+          : prio===2 ? "Someone can't fully work, or a deadline is at risk."
+          : prio===3 ? "Real problem, but there's a workaround or a smaller blast radius."
+          : "A request or minor issue — important, just not on fire.";
+
+        return { prio:prio, prioLabel:prioMeta[prio].label, sla:prioMeta[prio].sla, why:why,
+                 category:cat.name, assign:cat.assign, urgency:urgLabel[urgency], impact:impLabel[impact],
+                 signals:signals, conf:conf, steps:effectiveSteps, kbId:cat.kb[0], kbTitle:cat.kb[1], draft:draft };
+      }
+
+      // ---------------- UI wiring ----------------
+      var $ = function(id){ return document.getElementById(id); };
+      var toastTimer;
+      function toast(msg){
+        var t = $("toast"); t.textContent = msg; t.classList.add("show");
+        clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.classList.remove("show"); }, 2400);
+      }
+      function copyText(text, msg){
+        function done(){ toast(msg); }
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(text).then(done, function(){ fallback(); });
+        } else { fallback(); }
+        function fallback(){
+          var ta = document.createElement("textarea"); ta.value = text; ta.style.position="fixed"; ta.style.opacity="0";
+          document.body.appendChild(ta); ta.select();
+          try { document.execCommand("copy"); done(); } catch(e){ toast("Copy didn't work — select the text manually."); }
+          document.body.removeChild(ta);
+        }
+      }
+
+      var lastDraft = "";
+      function runTriage(){
+        var raw = $("f-ticket").value.trim();
+        if(!raw){ toast("Paste a ticket first — or load a sample."); $("f-ticket").focus(); return; }
+        var r = triage($("f-name").value.trim(), $("f-dept").value, parseInt($("f-scope").value,10), raw);
+        lastDraft = r.draft;
+        $("empty-state").style.display = "none";
+        var res = $("result"); res.classList.add("show");
+        var badge = $("prio-badge");
+        badge.className = "prio-badge prio-p" + r.prio;
+        $("prio-code").textContent = "P" + r.prio;
+        $("prio-label").textContent = r.prioLabel + " priority";
+        $("r-category").textContent = r.category;
+        $("r-assign").textContent = r.assign;
+        $("r-urgency").textContent = r.urgency;
+        $("r-impact").textContent = r.impact;
+        $("r-sla").innerHTML = "<b>SLA:</b> " + r.sla + " &nbsp;·&nbsp; <b>Why P" + r.prio + "?</b> " + r.why;
+        var sig = $("r-signals"); sig.innerHTML = "";
+        if(r.signals.length){
+          r.signals.slice(0,7).forEach(function(s){
+            var el = document.createElement("span"); el.className="sig"; el.textContent = '"' + s + '"'; sig.appendChild(el);
+          });
+        } else {
+          var el = document.createElement("span"); el.className="sig"; el.textContent = "no strong keywords — routed by intake rules"; sig.appendChild(el);
+        }
+        $("conf-fill").style.width = r.conf + "%";
+        $("conf-txt").textContent = r.conf + "% — based on how many category and urgency signals matched. In v2, the AI returns this score with its reasoning.";
+        var steps = $("r-steps"); steps.innerHTML = "";
+        r.steps.forEach(function(s){ var li = document.createElement("li"); li.textContent = s; steps.appendChild(li); });
+        $("r-kb-id").textContent = r.kbId;
+        $("r-kb-title").textContent = r.kbTitle;
+        $("r-draft").textContent = r.draft;
+        res.scrollIntoView({ behavior:"smooth", block:"nearest" });
+      }
+
+      $("btn-triage").addEventListener("click", runTriage);
+      $("btn-clear").addEventListener("click", function(){
+        $("f-name").value=""; $("f-dept").value=""; $("f-scope").value="1"; $("f-ticket").value="";
+        $("result").classList.remove("show"); $("empty-state").style.display="block"; lastDraft="";
+      });
+      $("btn-copy-draft").addEventListener("click", function(){ if(lastDraft) copyText(lastDraft, "Draft reply copied — paste it anywhere."); });
+      $("btn-copy-prompt").addEventListener("click", function(){
+        copyText($("master-prompt").innerText, "Master prompt copied — paste it into ChatGPT or Claude.");
+      });
+
+      // Sample buttons (first 4 tickets as quick samples)
+      var sampleWrap = $("sample-btns");
+      ["Locked out of account","Outlook won't sync","Wi-Fi down, whole floor","Suspicious email"].forEach(function(label, i){
+        var idx = [0,1,7,5][i];
+        var b = document.createElement("button");
+        b.type="button"; b.className="chip-btn"; b.textContent = label;
+        b.addEventListener("click", function(){ loadTicket(TICKETS[idx], false); });
+        sampleWrap.appendChild(b);
+      });
+
+      function loadTicket(t, scroll){
+        $("f-name").value = t.name; $("f-dept").value = t.dept; $("f-scope").value = String(t.scope);
+        $("f-ticket").value = t.text;
+        runTriage();
+        if(scroll){ $("triager").scrollIntoView({ behavior:"smooth" }); }
+      }
+
+      // Bank grid
+      var bank = $("bank-grid");
+      var prioClass = { P1:"prio-p1", P2:"prio-p2", P3:"prio-p3", P4:"prio-p4" };
+      TICKETS.forEach(function(t){
+        var b = document.createElement("button");
+        b.type="button"; b.className="ticket-card";
+        b.innerHTML = '<span class="t-head"><span class="t-id">' + t.id + ' · ' + t.name + ' · ' + t.dept + '</span>' +
+          '<span class="t-exp ' + prioClass[t.expPrio] + '">Expected: ' + t.expPrio + ' · ' + t.expCat + '</span></span>' +
+          '<span class="t-body"></span><span class="t-try">Tap to load &amp; triage →</span>';
+        b.querySelector(".t-body").textContent = '"' + t.text + '"';
+        b.addEventListener("click", function(){ loadTicket(t, true); toast(t.id + " loaded — expected " + t.expPrio + " · " + t.expCat + ". Did the triager agree?"); });
+        bank.appendChild(b);
+      });
+    </script>
+  </body>
+</html>
